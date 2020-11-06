@@ -13,14 +13,12 @@ class GameState:
     - the cards that have been played (stack data structure filled with integers that represent cards).
     Consider the stack as a literal pile of cards,
     the card on top of the stack is the one for which the card from either the left or right hand must match in either suit or value!"""
-    def __init__(self, leftHand, rightHand, playLeft, playedCards=[]):
-        self.leftHand = np.array(leftHand)
-        self.rightHand = np.array(rightHand)
-        self.playedCards = playedCards
-        if len(self.playedCards) == 0:
-            self.playedCards.append(98)
-            self.playedCards.append(99)
-        self.playLeft = playLeft
+    def __init__(self, leftHand, rightHand, playLeft=True, initialStateTest=False):
+        self.leftHand = leftHand #left hand is a list
+        self.rightHand = rightHand #right hand is a list
+        self.playLeft = playLeft #playleft is a boolean value to (help) determine from which hand we must lay a card (More specifically, it shows wether we play from the left hand). When left has laid a card, this value will be switched to False, when right has laid a card this value will be switched to True
+        self.initialStateTest = initialStateTest #this is implemented to make it easy to check if the state is the initial state (where every move is a valid move). It is used in class 'Problem', at 'actions'.
+
 
     def printState(self):
         print("------")
@@ -41,7 +39,6 @@ jack  [16 17 18 19]]
 For example: '10' is 'king of spades'
 """
 
-
 class Problem:
     """The class for a formal problem."""
 
@@ -49,92 +46,61 @@ class Problem:
         """The constructor specifies the initial state"""
         self.initial = initial
 
-    def actions(self, state, message):
+    def actions(self, state, solution):
         """Return a list of actions that can be executed in the given state.
         In this case, the list of cards for which there is a legal move, is returned"""
 
-        moves = []
-        if state.playLeft == True:
-            #state.playLeft lets us know if we want to play a card from the left hand (or from right if it's false)
-            for i in range(len(state.leftHand)):
-                #print("This action is caused by the {}".format(message))
-                if valid_move(state.playedCards[len(state.playedCards)-1], state.leftHand[i]):
-                    moves.append((state.leftHand[i], i, "L"))
-                #else:
-                    #print("Actions: No valid moves for left found!")
-            return moves
+        possibleMoves = []
+        if state.initialStateTest: #By default it is set to false, therefore it is only True if we explicitly set it to be (when defining initial state). At the initial state every move is a valid move.
+            return state.leftHand #All cards in the left hand are returned as valid moves (without checking, because there is nothing to check against)
+        elif state.playLeft: #If it is not the initial state, we can play the game as we normally would (with checking for valid moves!). Here we check if we have to play from the left hand.
+            for i in state.leftHand: #iterate through every card in left hand
+                if valid_move(solution[-1], i): #check if there is a valid move for that card (i)
+                    possibleMoves.append(i) #if the check passes, add the card to the list of possibly played cards.
+            return possibleMoves #return the list of possible moves from left hand
+        else: #If it is not the initial state, we can play the game as we normally would (with checking for valid moves!). Here we check if we have to play from the right hand.
+            for i in state.rightHand: #iterate through every card in your hand
+                if valid_move(solution[-1], i): #state.playedCards[-1] gets you the item on top of the stack without popping. (we want to compare the card to the last card played)
+                    possibleMoves.append(i) #this adds the card for which there is a valid move to the list of cards that can be played. 'extend' is a way of appending to a list
+            return possibleMoves #return the list of possible moves from right hand
 
-        if state.playLeft == False:
-            #if stack of played cards is odd, right plays
-            for i in range(len(state.rightHand)):
-                if valid_move(state.playedCards[len(state.playedCards)-1], state.rightHand[i]):
-                    moves.append((state.rightHand[i], i, "R"))
-                #else:
-                    #print("Actiona: No valid moves for right found!")
-            return moves
 
-    def result(self, state, action):
+    def result(self, state, action, solution):
         #in result, the state is returned that results from executing (one of the) moves from Actions (above).
-        """Return the state that results from executing the given
-        action in the given state. The 'action' is one of the cards from the list implemented above"""
+        """Return the state that results from executing the given action in the given state. The 'action' is one of the cards from the list implemented above"""
+        #this is the state now (originalstate), we get an action (cardPlayed), return the state how we want it to be after that action.
+        #cardPlayed = 'card played in original state'
 
-        # the triple (n-tuple as per the documentation) passed in via 'action' contains
-        # as first element the card(number)
-        # as second element the card index
-        # as third element a flag on whether the card belongs to left or right hand!
-        #print("Result: Received action containing: {} meaning we can play this card".format(action[0]))
-        #print("Result: At index {} so we need to delete the element at that index".format(action[1]))
-        #print("Result: From the {} hand".format(action[2]))
-        if state.playLeft:
-        #if action[2] == "L":
-            #print("Result-L: The left hand first looks like this: {}".format(state.leftHand))
-            cardInPlay = action[0]
-            indexOfCardInPlay = action[1]
-            #print("Result-L: The card in play is: {}".format(cardInPlay))
-            #print("Result-L: We delete it from the array")
-            newHand = np.delete(state.leftHand, indexOfCardInPlay)
-            #print("Result-L: Hand is now {}, we add the deleted number to stack".format(newHand))
-            state.playedCards.append(cardInPlay)
-            #print("Result-L: Printing stack: ")
-            #for i in state.playedCards:
-                #print("--")
-                #print(i)
-            flag = False
-            return GameState(newHand, state.rightHand, flag, state.playedCards)
+        originalState = state
+        cardPlayed = action  #cardPlayed = 'card played in original state'
+        newHand = [] #make a new list
 
-        else:
-            #print("Result-R: The right hand first looks like this: {}".format(state.rightHand))
-            cardInPlay = action[0]
-            indexOfCardInPlay = action[1]
-            #print("Result-R: The card in play is: {}".format(cardInPlay))
-            #print("Result-R: The index is: {}".format(indexOfCardInPlay) )
-            #print("Result-R: We delete it from the array")
-            newHand = np.delete(state.rightHand, indexOfCardInPlay)
-            #print("Result-R: Hand is now {}, we add the deleted number to stack".format(newHand))
-            state.playedCards.append(cardInPlay)
-            #print("Result-R: Printing stack: ")
-            #for i in state.playedCards:
-            #    print("--")
-            #    print(i)
-            flag = True
-            return GameState(state.leftHand, newHand, flag, state.playedCards)
+        if (originalState.playLeft): #if the card played in original state was from the left hand, we know the card should be removed from that hand and placed on top of the stack of played cards.
+            for i in originalState.leftHand:
+                if i == cardPlayed: #if the card we're looking at is the one that should be removed
+                    pass       # then don't add it to the new hand for the new state, but add it to the top of the played cards stack.
+                else:
+                    newHand.append(i) #add every other card (that has not been played) to the new hand for the new state
+            return GameState(newHand, originalState.rightHand, False, False) #this returns a gamestate object with as parameters (in order): new left hand, original right hand, next move will NOT be from left hand, we are NOT in initial state, the last played card(s))
+
+
+        else: #when it is not the initial state, and it is not left hand turn
+            for i in originalState.rightHand:
+                if i == cardPlayed:
+                    pass
+                else:
+                    newHand.append(i)
+
+            return GameState(originalState.leftHand, newHand, True, False) #this returns a gamestate object with as parameters (in order): new left hand, original right hand, next move WILL be from left hand, we are NOT in initial state, the last played card(s)
+
 
     def goal_test(self, state):
         """Return True if the state is a goal. Namely, when the left and right hand are empty"""
-        #print("GT: performing goal test")
-        #print("GT: hands at goal test: ")
-        #print("GT: {} <-- Left".format(state.leftHand))
-        #print("GT: {} <-- Right".format(state.rightHand))
-        if ((len(state.leftHand) == len(state.rightHand)) and len(state.leftHand)==0):
-            #print("###########")
-            #print(state.playedCards)
-            #print("###########")
+        #The game is defined to have left play first. If left plays first, right lays down the last card
+        if (len(state.rightHand)==0):
             return True
 
-
-        #by definition the game is over when all cards can be matched, so when 10 (2 times 5 cards per hand) cards
-        # are on the 'cards played' stack. In this function we check if the playedCards stack has 10 items in it,
-        # if it does we have reached a/the goal state!
+        #when both hands are empty the game is done.
 
     def path_cost(self, c, state1, action, state2):
         """Return the cost of a solution path that arrives at state2 from
@@ -169,12 +135,9 @@ class Node:
         self.action = action
         self.path_cost = path_cost
         self.depth = 0
-        self.nodeName = np.array_str(self.state.leftHand) + np.array_str(self.state.rightHand)
+        self.nodeName = np.array_str(np.array(self.state.leftHand)) + np.array_str(np.array(self.state.rightHand))
         if parent:
             self.depth = parent.depth + 1
-        #print("Node: The depth of the new node is: {}".format(self.depth))
-        #print("Node: The state represented by this node is: ")
-        #self.state.printState()
 
     def __repr__(self):
         return "<Node {}>".format(self.state)
@@ -184,19 +147,13 @@ class Node:
 
     def expand(self, problem):
         """List the nodes reachable in one step from this node."""
-        #for action in problem.actions(self.state, "Print for loop"):
-        #    print("Expand: Action is: {}".format(action))
-
         return [self.child_node(problem, action)
-                for action in problem.actions(self.state, "Return statement")]
+                for action in problem.actions(self.state, self.solution())]
 
 
     def child_node(self, problem, action):
-        """[Figure 3.10]"""
-        next_state = problem.result(self.state, action)
+        next_state = problem.result(self.state, action, self.solution())
         next_node = Node(next_state, self, action, problem.path_cost(self.path_cost, self.state, action, next_state))
-        #print("ChildNode: Next_state is {}".format(next_state))
-        #print("ChildNode: Next_node is {}".format(next_node))
         return next_node
 
     def solution(self):
@@ -232,13 +189,11 @@ class Node:
 # ______________________________________________________________________________
 
 def valid_move(cardA, cardB):
-    #print("validMove: comparing " + str(cardA) + " to " + str(cardB))
-    g = np.arange(20).reshape(5, 4)
+    #print("validMove: comparing " + str(cardA) + " to " + str(cardB)) UNCOMMENT THIS TO SEE WHICH CARDS ARE BEING COMPARED
+    g = np.arange(20).reshape(5, 4) #this produces the same grid as the representation, for the purpose of checking moves
     if check_value(cardA, cardB, g):
-        #print("validMove-Value: valid move found")
         return True
     elif check_suit(cardA, cardB, g):
-        #print("validMove-Suit: valid move found")
         return True
     else:
         #print("validMove: No move found")
@@ -246,10 +201,8 @@ def valid_move(cardA, cardB):
 
 def check_suit(cardA, cardB, grid):
     r, c = grid.shape
-    if (cardA == 99) or (cardB == 99):
-        return True
     for i in range(c):
-        if np.any(grid[:,i] == cardA) and np.any(grid[:,i] == cardB):
+        if np.any(grid[:, i] == cardA) and np.any(grid[:, i] == cardB):
             return True
 
 def check_value(cardA, cardB, grid):
@@ -266,51 +219,6 @@ def pick_cards(seed, size):
     leftHand = cards[:size]
     rightHand = cards[size:]
     return (leftHand, rightHand)
-
-def breadth_first_tree_search(problem):
-    """
-    Search the shallowest nodes in the search tree first.
-    Search through the successors of a problem to find a goal.
-    The argument fringe should be an empty queue.
-    Repeats infinitely in case of loops.
-    """
-
-    fringe = deque([Node(problem.initial)])  # FIFO queue
-
-    while fringe:
-        node = fringe.popleft()
-        #print("BFS: This node is now being considered (popped from fringe): {}".format(node.state.printState()))
-        if problem.goal_test(node.state):
-            print("###########")
-            print("success!")
-            return node
-        fringe.extend(node.expand(problem))
-    print("###########")
-    print("unfortunately no solution has been found!")
-    return None
-
-def depth_first_tree_search(problem):
-    """
-    [Figure 3.7]
-    Search the deepest nodes in the search tree first.
-    Search through the successors of a problem to find a goal.
-    The argument fringe should be an empty queue.
-    Repeats infinitely in case of loops.
-    """
-
-    fringe = [Node(problem.initial)]  # Stack
-
-    while fringe:
-        node = fringe.pop()
-        #print("DFS: This node is now being considered (popped form fringe) {}".format(node.state.printState()))
-        if problem.goal_test(node.state):
-            print("###########")
-            print("succes!")
-            return node
-        fringe.extend(node.expand(problem))
-    print("###########")
-    print("unfortunately no solution has been found!")
-    return None
 
 def exportToText(STUDENT_NUMBER="MISSING STUDENT NUMBER", noLeft="NO VALUE", noRight="NO VALUE", nodeCount="NO VALUE", myReport="NO VALUE", DFSL="NO VALUE", DFSR="NO VALUE", BFSL="NO VALUE", BFSR="NO VALUE"):
     fileName = str(STUDENT_NUMBER)+".txt"
